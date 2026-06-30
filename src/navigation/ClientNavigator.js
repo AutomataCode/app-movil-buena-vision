@@ -3,6 +3,9 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+
 
 // Pantallas  del cliente
 import CatalogoScreen from '../screens/CatalogoScreen';
@@ -11,12 +14,15 @@ import CarritoScreen from '../screens/CarritoScreen';
 import SeguridadScreen from '../screens/SeguridadScreen';
 import PedidoScreen from '../screens/PedidoScreen';
 import NotificacionScreen from '../screens/NotificacionScreen';
-
+import CheckoutScreen from '../screens/CheckoutScreen';
+import DetallePedidoScreen from '../screens/DetallePedidoScreen';
 import { useAuth } from '../hooks/useAuth';
+import MisSucursalesScreen from '../screens/MisSucursalesScreen';
+import FormularioSucursalScreen from '../screens/FormularioSucursalScreen';
 
 const Tab = createBottomTabNavigator();
 const Drawer = createDrawerNavigator();
-
+const Stack = createNativeStackNavigator();
 // Pestañas inferiores del Cliente
 function MainTabs() {
   return (
@@ -48,13 +54,30 @@ function CustomDrawerContent(props) {
 }
 
 // Contenedor Drawer Principal del Cliente
-export default function ClientNavigator() {
+function ClientDrawer() {
   return (
     <Drawer.Navigator initialRouteName="Home" drawerContent={(props) => <CustomDrawerContent {...props} />}>
       <Drawer.Screen name="Home" component={MainTabs} options={{ title: 'Inicio' }} />
       <Drawer.Screen name="Perfil" component={PerfilScreen} options={{ title: 'Mi Perfil' }} />
       <Drawer.Screen name="Seguridad" component={SeguridadScreen} options={{ title: 'Seguridad' }} />
+      <Drawer.Screen name="Pedido" component={PedidoScreen} options={{ title: 'Mis Pedidos' }} />
+      <Drawer.Screen name="MisSucursales" component={MisSucursalesScreen} options={{ title: 'Mis Tiendas' }} />
     </Drawer.Navigator>
+  );
+}
+
+export default function ClientNavigator() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {/* El Drawer y los Tabs principales */}
+      <Stack.Screen name="ClientDrawer" component={ClientDrawer} />
+      
+      {/* La pantalla de Checkout superpuesta */}
+      <Stack.Screen name="Checkout" component={CheckoutScreen} />
+
+      <Stack.Screen name="DetallePedido" component={DetallePedidoScreen} />
+      <Stack.Screen name="FormularioSucursal" component={FormularioSucursalScreen} />
+    </Stack.Navigator>
   );
 }
 

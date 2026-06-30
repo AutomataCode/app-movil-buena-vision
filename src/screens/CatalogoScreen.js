@@ -1,17 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { DeviceEventEmitter, BackHandler, Button, View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert} from 'react-native';
+import { DeviceEventEmitter, BackHandler, Button, View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Image} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useFocusEffect} from '@react-navigation/native';
+import { productoService } from '../services/productoService';
+
+import styles from '../styles/catalogoStyles';
 
 
 
-const PRODUCTOS_MOCK = [
-    { id: 1, nombre: 'Producto 1',  precio: 10.99, Codigo: 'P001' },
-    { id: 2, nombre: 'Producto 2', precio: 19.99, Codigo: 'P002' },
-    { id: 3, nombre: 'Producto 3',  precio: 5.99 ,Codigo: 'P003' },
-    { id: 4, nombre: 'Producto 4',  precio: 12.99, Codigo: 'P004' },
-
-];
 
 
 export default function CatalogoScreen({ navigation }) {
@@ -35,46 +31,82 @@ export default function CatalogoScreen({ navigation }) {
    const obtenerProductos = async () => {
     try {
         setCargando(true);
-        setTimeout(() => {
-            setProductos(PRODUCTOS_MOCK);
-            setCargando(false);
-        }, 1500); //latencia simulada de 1.5 segundos
+        
+        const data = await productoService.obtenerCatalog();
+        setProductos(data);
+
     }catch (error) {
-        console.error('Error al obtener productos:', error);
+        Alert.alert('Error', 'Hubo un problema al cargar los productos de la tienda.');
+       
+    }finally{
         setCargando(false);
     }
+
    };
-   //Funcion para leer 
+ 
    const cargarCarritoLocal = async () => {
     try {
-
         const carritoGuardado = await AsyncStorage.getItem('carrito');
         if (carritoGuardado !== null) {
-            setCarrito(JSON.parse(carritoGuardado));
+            const dataParseada = JSON.parse(carritoGuardado);
+            // verificar si realmente es una lista. Si no lo es ponemos un arreglo vacío [].
+            setCarrito(Array.isArray(dataParseada) ? dataParseada : []);
         }
-    }catch (error) {
+    } catch (error) {
         console.error('Error al cargar el carrito:', error);
+        setCarrito([]); // Si el JSON está roto, lo reseteamos a vacío
     }
    };
-   //Funcion para guardar el carrito
+
+
    const agregarAlCarrito = async (producto) => {
-    try {
-        const nuevoCarrito = [...carrito, producto];
-        setCarrito(nuevoCarrito);
-        await AsyncStorage.setItem('carrito', JSON.stringify(nuevoCarrito));
-        Alert.alert('Producto agregado', `${producto.nombre} ha sido agregado al carrito`);
-    }catch (error) {
-        console.error('Error al agregar al carrito:', error);
+try {
+        
+        //version actualizada 
+        const carritoGuardado = await AsyncStorage.getItem('carrito');
+        let carritoActual = [];
+        if (carritoGuardado !== null) {
+            const dataParseada = JSON.parse(carritoGuardado);
+            carritoActual = Array.isArray(dataParseada) ? dataParseada : [];
+        }
+
+        // buscar si el producto ya está en el carrito
+        const indiceExistente = carritoActual.findIndex(item => item.id === producto.id);
+
+        let nuevoCarrito;
+
+        if (indiceExistente >= 0) {
+            // Si ya existe, NO lo duplicamos. Solo le sumamos 1 a su cantidad.
+            nuevoCarrito = [...carritoActual];
+            nuevoCarrito[indiceExistente].cantidad = (nuevoCarrito[indiceExistente].cantidad || 1) + 1;
+        } else {
+            //si es nuevo de verdad, lo agregamos con cantidad 1
+            nuevoCarrito = [...carritoActual, { ...producto, cantidad: 1 }];
+        }
+
+        setCarrito(nuevoCarrito); // Actualizamos la vista local
+        await AsyncStorage.setItem('carrito', JSON.stringify(nuevoCarrito)); // Guardamos en el disco
+        
+        Alert.alert('¡Éxito!', `${producto.nombreProducto} agregado al carrito`);
+    } catch (error) {
+        console.error('Error crítico al agregar al carrito:', error);
+        Alert.alert('Error', 'No pudimos agregar el producto.');
     }
-  };         
+  };      
 
    //funcion para renderizar cada producto en la lista
    const renderItem = ({ item }) => (
     <View style={styles.card}>
-        <Text style={styles.cardTitle}>{item.nombre}</Text>
-        <Text style={styles.cardSubtitle}>{item.Codigo}</Text>
-        <Text style={styles.cardPrice}>S/.{item.precio.toFixed(2)}</Text>
+        <View style={styles.cardBody}>
+            <Image source={{uri: item.imagen}}
+                style={styles.cardImage}
+            />
+            
 
+        <Text style={styles.cardTitle}>{item.nombreProducto}</Text>
+        <Text style={styles.cardSubtitle}>{item.sku}</Text>
+        <Text style={styles.cardPrice}>S/.{item.precioProducto.toFixed(2)}</Text>
+        </View>
         <TouchableOpacity style={styles.addButton} onPress={() => agregarAlCarrito(item)}>
             <Text style={styles.addButtonText}>Comprar</Text>
         </TouchableOpacity>
@@ -100,50 +132,9 @@ return (
         renderItem={renderItem} //funcion para renderizar cada producto
         keyExtractor={(item) => item.id.toString()} //clave unica para cada item
         numColumns={2} //mostrar en 2 columnas
+        ListEmptyComponent={<Text style={{textAlign: 'center', marginTop: 20}}>No hay productos disponibles por ahora.</Text>}
       />
     </View>
   );
 
 }
-const styles = StyleSheet.create({
-
-    container: {flex: 1, backgroundColor: '#f5f5f5', padding: 10},
-    headerTitle: {fontSize: 20, fontWeight: 'bold', marginBottom: 15, color: '#333', textAlign: 'center'},
-    center: {flex: 1, justifyContent: 'center', alignItems: 'center'},
-    loadingText: {marginTop: 10, color: '#666'},
-
-    cartIndicator: {
-        padding: 10, 
-        backgroundColor: '#0056b3',
-         borderRadius: 8, 
-         marginBottom: 10,
-         alignItems: 'center'
-    },     
-    cartIndicatorText: {color: '#fff', fontWeight: 'bold'},
-
-    card: {
-        
-        backgroundColor: '#fff',
-         borderRadius: 10, 
-         padding: 15, 
-         margin: 5, 
-         borderwidth: 1,
-         borderColor: '#e0e0e0',
-         flex: 1,   
-         shadowColor: '#000', 
-         shadowOffset: {width: 0, height: 2}, 
-         shadowOpacity: 0.1, shadowRadius: 4, elevation: 3,
-    },
-    cardTitle: {fontSize: 16, fontWeight: 'bold', color: '#0056b3', marginBottom: 5},
-    cardSubtitle: {fontSize: 12, color: '#777', marginVertical: 3},
-    cardPrice: {fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 5},
-    addButton: {
-        backgroundColor: '#e6f0fa',
-        padding: 8, 
-        borderRadius: 6,
-        alignItems: 'center',
-        marginTop: 5
-    },
-    addButtonText: {color: '#0056b3', fontSize: 14, fontWeight: 'bold' }
-    
-});

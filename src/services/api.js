@@ -2,13 +2,27 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {DeviceEventEmitter, Alert} from 'react-native';
 
-const API_URL = '192.168.1.11'
+const API_URL = '192.168.1.38'
 const api = axios.create({
   baseURL: `http://${API_URL}:8051/api`,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+api.interceptors.request.use(
+    async (config) => {
+        const token = await AsyncStorage.getItem('token_sesion');
+    if (token && token !== 'null' && token !== 'undefined') {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
+
 api.interceptors.response.use(
     (response) => {
        
